@@ -19,9 +19,9 @@ const PORT = process.env.PORT || 5002;
 
 // Middleware
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002', '*'],
+  origin: '*',
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
-  credentials: true
+  credentials: true,
 }));
 app.use(express.json());
 app.use(express.static('uploads'));

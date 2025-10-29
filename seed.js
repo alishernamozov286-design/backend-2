@@ -16,7 +16,7 @@ const servicesData = [
     duration: 45
   },
   {
-    name: 'Soqol Tarash',
+    name: 'Soqol Olish',
     description: 'Professional soqol tarash, yuz massaji va aftershave bilan. Mukammal toza ko\'rinish.',
     price: 35000,
     duration: 30

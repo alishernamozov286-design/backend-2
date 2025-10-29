@@ -1,4 +1,6 @@
 const fetch = require('node-fetch');
+const Master = require('../models/Master');
+const { mockMasters } = require('../mockData');
 
 const formatBookingMessage = (booking) => {
   const svc = booking.serviceId && booking.serviceId.name ? booking.serviceId.name : 'Xizmat';
@@ -28,10 +30,37 @@ const formatBookingMessage = (booking) => {
   ].filter(Boolean).join('\n');
 };
 
+const formatWorkerBookingMessage = (booking) => {
+  const svc = booking.serviceId && booking.serviceId.name ? booking.serviceId.name : 'Xizmat';
+  const date = booking.appointmentDate ? new Date(booking.appointmentDate).toLocaleDateString('uz-UZ') : '';
+  const time = booking.appointmentTime || '';
+  const price = booking.totalPrice ? new Intl.NumberFormat('uz-UZ').format(booking.totalPrice) + " so'm" : '';
+
+  return [
+    '🔔 <b>Sizga yangi buyurtma!</b>',
+    '',
+    `<b>👤 Mijoz:</b> ${booking.customerName || ''}`,
+    `<b>📞 Telefon:</b> ${booking.customerPhone || ''}`,
+    '',
+    `<b>💈 Xizmat:</b> ${svc}`,
+    `<b>📅 Sana:</b> ${date}`,
+    `<b>⏰ Vaqt:</b> ${time}`,
+    `<b>💵 Narx:</b> ${price}`,
+    '',
+    'Iltimos, mijozni kutib oling!'
+  ].filter(Boolean).join('\n');
+};
+
 async function sendTelegramMessage(text, recipientChatId = null) {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   const defaultChatId = process.env.TELEGRAM_CHAT_ID;
   const chatId = recipientChatId || defaultChatId; // Use provided chat ID or default
+  
+  console.log('🔍 Telegram notification attempt:');
+  console.log('  Token exists:', !!token);
+  console.log('  Default Chat ID exists:', !!defaultChatId);
+  console.log('  Provided Chat ID:', recipientChatId);
+  console.log('  Final Chat ID to use:', chatId);
   
   if (!token) {
     console.log('❌ Telegram Bot Token sozlanmagan!');
@@ -45,6 +74,8 @@ async function sendTelegramMessage(text, recipientChatId = null) {
   
   try {
     const url = `https://api.telegram.org/bot${token}/sendMessage`;
+    console.log('📡 Sending request to:', url);
+    
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -56,6 +87,8 @@ async function sendTelegramMessage(text, recipientChatId = null) {
     });
     
     const result = await response.json();
+    console.log('📥 Telegram API response status:', response.status);
+    console.log('📥 Telegram API response body:', JSON.stringify(result, null, 2));
     
     if (!response.ok) {
       console.error('❌ Telegram xato:', response.status, result);
@@ -73,12 +106,49 @@ async function sendTelegramMessage(text, recipientChatId = null) {
 
 async function notifyBooking(booking) {
   try {
+    console.log('🔔 Booking notification triggered for:', booking.customerName);
     const text = formatBookingMessage(booking);
-    const result = await sendTelegramMessage(text);
-    if (!result.success) {
-      console.error('❌ Booking notification xatosi:', result.error);
+    console.log('📝 Formatted message:', text);
+    
+    // Send notification to admin
+    const adminResult = await sendTelegramMessage(text);
+    if (!adminResult.success) {
+      console.error('❌ Booking notification xatosi (admin):', adminResult.error);
+    } else {
+      console.log('✅ Booking notification sent to admin successfully!');
     }
-    return result;
+    
+    // Send notification to worker
+    let workerChatId = null;
+    
+    // Check if we're using mock data or real data
+    if (global.useMockData) {
+      const master = mockMasters.find(m => m._id.toString() === booking.masterId);
+      workerChatId = master ? master.telegramChatId : null;
+    } else {
+      // For real data, get the master's chat ID from the database
+      try {
+        const master = await Master.findById(booking.masterId);
+        workerChatId = master ? master.telegramChatId : null;
+      } catch (error) {
+        console.error('❌ Error getting master data:', error.message);
+      }
+    }
+    
+    // If worker has a chat ID, send notification to worker
+    if (workerChatId) {
+      const workerText = formatWorkerBookingMessage(booking);
+      const workerResult = await sendTelegramMessage(workerText, workerChatId);
+      if (!workerResult.success) {
+        console.error('❌ Booking notification xatosi (worker):', workerResult.error);
+      } else {
+        console.log('✅ Booking notification sent to worker successfully!');
+      }
+    } else {
+      console.log('ℹ️  Worker notification skipped (no chat ID for worker)');
+    }
+    
+    return adminResult;
   } catch (error) {
     console.error('❌ Booking notificationda kutilmagan xato:', error.message);
     return { success: false, error: error.message };

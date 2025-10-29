@@ -14,8 +14,7 @@ const telegramRoutes = require('./routes/telegram');
 dotenv.config();
 
 const app = express();
-// 5001-port band bo'lsa, 5002-portdan foydalanamiz
-const PORT = process.env.PORT || 5002;
+const PORT = process.env.PORT || 5001;
 
 // Middleware
 app.use(cors({
@@ -98,6 +97,6 @@ app.get('/', (req, res) => {
   res.json({ message: 'Barbershop API ishlamoqda!' });
 });
 
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, () => {
   console.log(` barber shop server ${PORT} portida ishga tushdi`);
 });

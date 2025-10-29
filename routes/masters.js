@@ -44,7 +44,7 @@ router.get('/:id', async (req, res) => {
 // Yangi usta qo'shish
 router.post('/', async (req, res) => {
   try {
-    const { name, experience, specialization, phone, workingHours, workingDays } = req.body;
+    const { name, experience, specialization, phone, telegramChatId, workingHours, workingDays } = req.body;
     
     // Validatsiya
     if (!name || !experience || !phone || !workingHours || !workingDays || !Array.isArray(specialization) || specialization.length === 0) {
@@ -58,6 +58,7 @@ router.post('/', async (req, res) => {
         experience,
         specialization,
         phone,
+        telegramChatId: telegramChatId || null,
         workingHours,
         workingDays,
         rating: 5.0,
@@ -75,6 +76,7 @@ router.post('/', async (req, res) => {
       experience,
       specialization,
       phone,
+      telegramChatId: telegramChatId || null,
       workingHours,
       workingDays
     });
@@ -89,7 +91,7 @@ router.post('/', async (req, res) => {
 // Ustani yangilash
 router.put('/:id', async (req, res) => {
   try {
-    const { name, experience, specialization, phone, workingHours, workingDays } = req.body;
+    const { name, experience, specialization, phone, telegramChatId, workingHours, workingDays } = req.body;
     
     // Validatsiya
     if (!name || !experience || !phone || !workingHours || !workingDays || !Array.isArray(specialization) || specialization.length === 0) {
@@ -108,6 +110,7 @@ router.put('/:id', async (req, res) => {
         experience,
         specialization,
         phone,
+        telegramChatId: telegramChatId || null,
         workingHours,
         workingDays,
         updatedAt: new Date()
@@ -124,6 +127,7 @@ router.put('/:id', async (req, res) => {
         experience,
         specialization,
         phone,
+        telegramChatId: telegramChatId || null,
         workingHours,
         workingDays
       },

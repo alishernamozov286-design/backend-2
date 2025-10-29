@@ -29,6 +29,11 @@ const masterSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  // Telegram chat ID for worker notifications
+  telegramChatId: {
+    type: String,
+    default: null
+  },
   workingHours: {
     start: {
       type: String,

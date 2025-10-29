@@ -4,16 +4,47 @@ const Booking = require('../models/Booking');
 const { mockBookings, mockServices, mockMasters } = require('../mockData');
 const mongoose = require('mongoose');
 const { notifyBooking } = require('../utilities/notify');
+const { 
+  sendBookingConfirmedSMS, 
+  sendBookingCancelledSMS, 
+  sendBookingCompletedSMS 
+} = require('../utilities/smsNotify');
 
 // Barcha bronlarni olish
 router.get('/', async (req, res) => {
   try {
+    const { masterId, date } = req.query;
+    
     if (global.useMockData) {
-      const activeBookings = mockBookings.filter(b => !b.isDeleted);
+      let activeBookings = mockBookings.filter(b => !b.isDeleted);
+      
+      // Agar masterId va date berilgan bo'lsa, filtrlash
+      if (masterId && date) {
+        activeBookings = activeBookings.filter(b => 
+          b.masterId.toString() === masterId &&
+          new Date(b.appointmentDate).toDateString() === new Date(date).toDateString() &&
+          b.status !== 'bekor_qilingan'
+        );
+      }
+      
       return res.json(activeBookings);
     }
     
-    const bookings = await Booking.find({ isDeleted: { $ne: true } })
+    let query = { isDeleted: { $ne: true } };
+    
+    // Agar masterId va date berilgan bo'lsa, qo'shimcha filtr qo'shish
+    if (masterId && date) {
+      const startOfDay = new Date(date);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(date);
+      endOfDay.setHours(23, 59, 59, 999);
+      
+      query.masterId = masterId;
+      query.appointmentDate = { $gte: startOfDay, $lte: endOfDay };
+      query.status = { $ne: 'bekor_qilingan' };
+    }
+    
+    const bookings = await Booking.find(query)
       .populate('serviceId', 'name price duration')
       .populate('masterId', 'name phone')
       .sort({ createdAt: -1 });
@@ -65,39 +96,20 @@ router.post('/', async (req, res) => {
     } = req.body;
     
     if (global.useMockData) {
-      // Mock data bilan ishlash
-      // Check for specific conflicts in order of priority
-      // 1. Exact conflict (master + date + time)
-      const exactConflict = mockBookings.find(b => 
+      // Mock data bilan ishlash - vaqt toqnashuvini tekshirish
+      const existingMockBooking = mockBookings.find(b => 
         b.masterId.toString() === masterId &&
-        b.appointmentDate.toDateString() === new Date(appointmentDate).toDateString() &&
+        new Date(b.appointmentDate).toDateString() === new Date(appointmentDate).toDateString() &&
         b.appointmentTime === appointmentTime &&
-        ['kutilmoqda', 'tasdiqlangan'].includes(b.status)
+        !b.isDeleted &&
+        b.status !== 'bekor_qilingan'
       );
-      
-      if (exactConflict) {
-        return res.status(400).json({ message: 'Bu usta band!' });
-      }
-      
-      // 2. Date and time conflict (any master)
-      const dateTimeConflict = mockBookings.find(b => 
-        b.appointmentDate.toDateString() === new Date(appointmentDate).toDateString() &&
-        b.appointmentTime === appointmentTime &&
-        ['kutilmoqda', 'tasdiqlangan'].includes(b.status)
-      );
-      
-      if (dateTimeConflict) {
-        return res.status(400).json({ message: 'Bu kun band!' });
-      }
-      
-      // 3. Time conflict (any date, any master)
-      const timeConflict = mockBookings.find(b => 
-        b.appointmentTime === appointmentTime &&
-        ['kutilmoqda', 'tasdiqlangan'].includes(b.status)
-      );
-      
-      if (timeConflict) {
-        return res.status(400).json({ message: 'Bu vaqt band!' });
+
+      if (existingMockBooking) {
+        return res.status(400).json({ 
+          message: 'Bu vaqtda usta band. Iltimos, boshqa vaqt tanlang.',
+          conflict: true
+        });
       }
 
       const newBooking = {
@@ -125,49 +137,39 @@ router.post('/', async (req, res) => {
       const populatedBooking = {
         ...newBooking,
         serviceId: service,
-        masterId: master
+        masterId: master  
       };
 
       // Telegram xabarnoma
-      notifyBooking(populatedBooking).catch(()=>{});
+      notifyBooking(populatedBooking)
+        .then(result => {
+          if (!result.success) {
+            console.error('⚠️ Telegram notification failed for mock booking:', result.error);
+          }
+        })
+        .catch(error => {
+          console.error('⚠️ Telegram notification error for mock booking:', error);
+        });
       
       return res.status(201).json(populatedBooking);
     }
     
-    // Check for specific conflicts in order of priority
-    // 1. Exact conflict (master + date + time)
-    const exactConflict = await Booking.findOne({
-      masterId,
+    // Vaqt toqnashuvini tekshirish
+    const existingBooking = await Booking.findOne({
+      masterId: masterId,
       appointmentDate: new Date(appointmentDate),
-      appointmentTime,
-      status: { $in: ['kutilmoqda', 'tasdiqlangan'] }
+      appointmentTime: appointmentTime,
+      isDeleted: { $ne: true },
+      status: { $ne: 'bekor_qilingan' }
     });
 
-    if (exactConflict) {
-      return res.status(400).json({ message: 'Bu usta band!' });
+    if (existingBooking) {
+      return res.status(400).json({ 
+        message: 'Bu vaqtda usta band. Iltimos, boshqa vaqt tanlang.',
+        conflict: true
+      });
     }
     
-    // 2. Date and time conflict (any master)
-    const dateTimeConflict = await Booking.findOne({
-      appointmentDate: new Date(appointmentDate),
-      appointmentTime,
-      status: { $in: ['kutilmoqda', 'tasdiqlangan'] }
-    });
-
-    if (dateTimeConflict) {
-      return res.status(400).json({ message: 'Bu kun band!' });
-    }
-    
-    // 3. Time conflict (any date, any master)
-    const timeConflict = await Booking.findOne({
-      appointmentTime,
-      status: { $in: ['kutilmoqda', 'tasdiqlangan'] }
-    });
-
-    if (timeConflict) {
-      return res.status(400).json({ message: 'Bu vaqt band!' });
-    }
-
     const newBooking = new Booking({
       customerName,
       customerPhone,
@@ -186,8 +188,16 @@ router.post('/', async (req, res) => {
       .populate('masterId');
 
     // Telegram xabarnoma
-    notifyBooking(populatedBooking).catch(()=>{});
-    
+    notifyBooking(populatedBooking)
+      .then(result => {
+        if (!result.success) {
+          console.error('⚠️ Telegram notification failed for real booking:', result.error);
+        }
+      })
+      .catch(error => {
+        console.error('⚠️ Telegram notification error for real booking:', error);
+      });
+  
     res.status(201).json(populatedBooking);
   } catch (error) {
     res.status(400).json({ message: 'Bron qilishda xatolik', error: error.message });
@@ -198,14 +208,54 @@ router.post('/', async (req, res) => {
 router.patch('/:id/status', async (req, res) => {
   try {
     const { status } = req.body;
+    
+    if (global.useMockData) {
+      // Mock data bilan ishlash
+      const bookingIndex = mockBookings.findIndex(b => b._id.toString() === req.params.id && !b.isDeleted);
+      if (bookingIndex === -1) {
+        return res.status(404).json({ message: 'Bron topilmadi' });
+      }
+      
+      const oldStatus = mockBookings[bookingIndex].status;
+      mockBookings[bookingIndex].status = status;
+      mockBookings[bookingIndex].updatedAt = new Date();
+      
+      // Populate with service and master info
+      const service = mockServices.find(s => s._id.toString() === mockBookings[bookingIndex].serviceId);
+      const master = mockMasters.find(m => m._id.toString() === mockBookings[bookingIndex].masterId);
+      
+      const populatedBooking = {
+        ...mockBookings[bookingIndex],
+        serviceId: service,
+        masterId: master
+      };
+      
+      // SMS yuborish (faqat status o'zgargan bo'lsa)
+      if (oldStatus !== status) {
+        sendStatusChangeSMS(populatedBooking, status);
+      }
+      
+      return res.json(populatedBooking);
+    }
+    
+    // Real MongoDB bilan ishlash
+    const oldBooking = await Booking.findById(req.params.id)
+      .populate('serviceId')
+      .populate('masterId');
+      
+    if (!oldBooking) {
+      return res.status(404).json({ message: 'Bron topilmadi' });
+    }
+    
     const booking = await Booking.findByIdAndUpdate(
       req.params.id,
       { status },
       { new: true }
     ).populate('serviceId').populate('masterId');
     
-    if (!booking) {
-      return res.status(404).json({ message: 'Bron topilmadi' });
+    // SMS yuborish (faqat status o'zgargan bo'lsa)
+    if (oldBooking.status !== status) {
+      sendStatusChangeSMS(booking, status);
     }
     
     res.json(booking);
@@ -213,6 +263,40 @@ router.patch('/:id/status', async (req, res) => {
     res.status(400).json({ message: 'Status o\'zgartirishda xatolik', error: error.message });
   }
 });
+
+// Status o'zgarishida SMS yuborish funksiyasi
+async function sendStatusChangeSMS(booking, newStatus) {
+  try {
+    let smsResult;
+    
+    switch (newStatus) {
+      case 'tasdiqlangan':
+        smsResult = await sendBookingConfirmedSMS(booking);
+        console.log('📱 Tasdiq SMS yuborildi:', smsResult.success ? '✅' : '❌', booking.customerPhone);
+        break;
+        
+      case 'bekor_qilingan':
+        smsResult = await sendBookingCancelledSMS(booking);
+        console.log('📱 Bekor qilish SMS yuborildi:', smsResult.success ? '✅' : '❌', booking.customerPhone);
+        break;
+        
+      case 'bajarilgan':
+        smsResult = await sendBookingCompletedSMS(booking);
+        console.log('📱 Bajarildi SMS yuborildi:', smsResult.success ? '✅' : '❌', booking.customerPhone);
+        break;
+        
+      default:
+        console.log('📱 SMS yuborilmadi - status:', newStatus);
+        break;
+    }
+    
+    if (smsResult && !smsResult.success) {
+      console.error('❌ SMS yuborishda xatolik:', smsResult.error);
+    }
+  } catch (error) {
+    console.error('❌ SMS yuborishda xatolik:', error.message);
+  }
+}
 
 // Soft delete booking
 router.delete('/:id', async (req, res) => {
@@ -318,3 +402,12 @@ router.patch('/:id/restore', async (req, res) => {
 });
 
 module.exports = router;
+
+
+
+
+
+
+
+
+

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Service = require('../models/Service');
-const { mockServices } = require('../mockData');
+const { mockServices } = require('../mockData');    
 
 // Get all services
 router.get('/', async (req, res) => {
@@ -15,7 +15,7 @@ router.get('/', async (req, res) => {
     
     // Use real MongoDB
     const services = await Service.find({ isActive: true });
-    res.json(services);
+    res.json(services); 
   } catch (error) {
     res.status(500).json({ message: 'Server error occurred', error: error.message });
   }

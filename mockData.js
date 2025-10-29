@@ -1,27 +1,12 @@
-// In-memory mock data for development
-const { ObjectId } = require('mongoose').Types;
+// Mock data for development and testing purposes
 
-// Generate ObjectIds
-const generateObjectId = () => new ObjectId();
-
-// Demo services data
+// Mock services
 const mockServices = [
   {
-    _id: generateObjectId(),
-    name: 'Klassik Soch Kesish',
-    description: 'Professional sartarosh tomonidan klassik uslubda soch kesish. Shampoo va styling kiradi.',
+    _id: '1',
+    name: 'Soch qirqish',
+    description: 'Professional soch qirqish xizmati',
     price: 50000,
-    duration: 45,
-    image: '',
-    isActive: true,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  },
-  {
-    _id: generateObjectId(),
-    name: 'Soqol Tarash',
-    description: 'Professional soqol tarash, yuz massaji va aftershave bilan. Mukammal toza ko\'rinish.',
-    price: 35000,
     duration: 30,
     image: '',
     isActive: true,
@@ -29,21 +14,10 @@ const mockServices = [
     updatedAt: new Date()
   },
   {
-    _id: generateObjectId(),
-    name: 'VIP Paket',
-    description: 'Soch kesish + soqol tarash + yuz parvarish + bosh massaji. To\'liq grooming tajriba.',
-    price: 120000,
-    duration: 90,
-    image: '',
-    isActive: true,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  },
-  {
-    _id: generateObjectId(),
-    name: 'Mustache Styling',
-    description: 'Professional mo\'ylov shakllash va styling. Turli uslublar mavjud.',
-    price: 25000,
+    _id: '2',
+    name: 'Soqol olish',
+    description: 'Professional soqol olish xizmati',
+    price: 40000,
     duration: 20,
     image: '',
     isActive: true,
@@ -51,22 +25,11 @@ const mockServices = [
     updatedAt: new Date()
   },
   {
-    _id: generateObjectId(),
-    name: 'Yuz Parvarish',
-    description: 'Erkaklar uchun maxsus yuz parvarishi, tozalash va namlovchi maskalar.',
-    price: 45000,
-    duration: 40,
-    image: '',
-    isActive: true,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  },
-  {
-    _id: generateObjectId(),
-    name: 'Bosh Massaji',
-    description: 'Relaks uchun professional bosh va bo\'yin massaji.',
-    price: 30000,
-    duration: 25,
+    _id: '3',
+    name: 'Klassik turk soch olish',
+    description: 'Klassik turk usulida soch olish',
+    price: 80000,
+    duration: 45,
     image: '',
     isActive: true,
     createdAt: new Date(),
@@ -74,54 +37,46 @@ const mockServices = [
   }
 ];
 
-// Demo masters data
+// Mock masters
 const mockMasters = [
   {
-    _id: generateObjectId(),
-    name: 'Aziz Karimov',
-    photo: '',
-    experience: 8,
-    specialization: ['Klassik soch kesish', 'Soqol tarash', 'Styling'],
+    _id: '1',
+    name: 'Alisher Namozov',
+    phone: '+998901234567',
+    experience: 5,
     rating: 4.9,
-    phone: '+998 90 123 45 67',
-    workingHours: { start: '09:00', end: '18:00' },
+    image: '',
+    telegramChatId: null,
     workingDays: ['Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba'],
+    workingHours: {
+      start: '09:00',
+      end: '18:00'
+    },
     isActive: true,
     createdAt: new Date(),
     updatedAt: new Date()
   },
   {
-    _id: generateObjectId(),
-    name: 'Bobur Ahmedov',
-    photo: '',
-    experience: 12,
-    specialization: ['VIP paket', 'Yuz parvarish', 'Massaj'],
-    rating: 4.8,
-    phone: '+998 91 234 56 78',
-    workingHours: { start: '10:00', end: '19:00' },
-    workingDays: ['Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba', 'Yakshanba'],
-    isActive: true,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  },
-  {
-    _id: generateObjectId(),
-    name: 'Sardor Usmonov',
-    photo: '',
-    experience: 6,
-    specialization: ['Zamonaviy uslublar', 'Mo\'ylov styling', 'Konsultatsiya'],
+    _id: '2',
+    name: 'Ibrohim Ergashev',
+    phone: '+998901234568',
+    experience: 3,
     rating: 4.7,
-    phone: '+998 93 345 67 89',
-    workingHours: { start: '08:30', end: '17:30' },
-    workingDays: ['Dushanba', 'Chorshanba', 'Juma', 'Shanba', 'Yakshanba'],
+    image: '',
+    telegramChatId: null,
+    workingDays: ['Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba'],
+    workingHours: {
+      start: '10:00',
+      end: '19:00'
+    },
     isActive: true,
     createdAt: new Date(),
     updatedAt: new Date()
   }
 ];
 
-// Mock bookings storage
-let mockBookings = [];
+// Mock bookings
+const mockBookings = [];
 
 module.exports = {
   mockServices,

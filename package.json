@@ -13,7 +13,12 @@
     "init-db": "node initDatabase.js",
     "seed": "node seed.js",
     "setup-bot": "node scripts/setupTelegramBot.js",
-    "bot-help": "node scripts/setupTelegramBot.js --help"
+    "bot-help": "node scripts/setupTelegramBot.js --help",
+    "postinstall": "npm run init-db"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
   },
   "dependencies": {
     "axios": "^1.13.0",

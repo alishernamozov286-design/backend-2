@@ -14,15 +14,30 @@ const telegramRoutes = require('./routes/telegram');
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5001;
+const PORT = process.env.PORT || 10000;
+
+// Trust proxy for Render.com
+app.set('trust proxy', 1);
 
 // Middleware
 app.use(cors({
-  origin: '*',
+  origin: process.env.NODE_ENV === 'production'
+    ? ['https://barbershop-frontend.onrender.com', 'https://barbershop-buxara.netlify.app']
+    : '*',
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
   credentials: true,
 }));
-app.use(express.json());
+
+// Security headers
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  next();
+});
+
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static('uploads'));
 
 // Routes
@@ -33,8 +48,8 @@ app.use('/api/telegram', telegramRoutes);
 
 // Health check endpoint for Render
 app.get('/health', (req, res) => {
-  res.status(200).json({ 
-    status: 'OK', 
+  res.status(200).json({
+    status: 'OK',
     timestamp: new Date().toISOString(),
     service: 'Barbershop API'
   });
@@ -43,7 +58,7 @@ app.get('/health', (req, res) => {
 // Serve frontend build in production
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, 'public')));
-  
+
   // Handle React routing, return all requests to React app
   app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -54,42 +69,42 @@ if (process.env.NODE_ENV === 'production') {
 if (process.env.MONGODB_URI) {
   console.log('🔄 MongoDB Atlas ga ulanishga harakat qilamiz...');
   console.log('URI:', process.env.MONGODB_URI);
-  
+
   mongoose.connect(process.env.MONGODB_URI)
-  .then(() => {
-    console.log('✅ MongoDB Atlas ga ulanish muvaffaqiyatli');
-    global.useMockData = false;
-  })
-  .catch(err => {
-    console.error('❌ MongoDB Atlas ulanish xatosi:', err.message);
-    console.log('🔄 Local MongoDB ga ulanishga harakat qilamiz...');
-    
-    // Fallback to local MongoDB
-    mongoose.connect('mongodb://localhost:27017/barbershop')
+    .then(() => {
+      console.log('✅ MongoDB Atlas ga ulanish muvaffaqiyatli');
+      global.useMockData = false;
+    })
+    .catch(err => {
+      console.error('❌ MongoDB Atlas ulanish xatosi:', err.message);
+      console.log('🔄 Local MongoDB ga ulanishga harakat qilamiz...');
+
+      // Fallback to local MongoDB
+      mongoose.connect('mongodb://localhost:27017/barbershop')
+        .then(() => {
+          console.log('✅ Local MongoDB ga ulanish muvaffaqiyatli');
+          global.useMockData = false;
+        })
+        .catch(localErr => {
+          console.error('❌ Local MongoDB ulanish xatosi:', localErr.message);
+          console.log('🔄 Mock data bilan ishlaymiz...');
+          global.useMockData = true;
+        });
+    });
+} else {
+  console.log('⚠️  MongoDB URI sozlanmagan, local MongoDB ga ulanishga harakat qilamiz...');
+
+  // Try to connect to local MongoDB
+  mongoose.connect('mongodb://localhost:27017/barbershop')
     .then(() => {
       console.log('✅ Local MongoDB ga ulanish muvaffaqiyatli');
       global.useMockData = false;
     })
-    .catch(localErr => {
-      console.error('❌ Local MongoDB ulanish xatosi:', localErr.message);
+    .catch(err => {
+      console.error('❌ Local MongoDB ulanish xatosi:', err.message);
       console.log('🔄 Mock data bilan ishlaymiz...');
       global.useMockData = true;
     });
-  });
-} else {
-  console.log('⚠️  MongoDB URI sozlanmagan, local MongoDB ga ulanishga harakat qilamiz...');
-  
-  // Try to connect to local MongoDB
-  mongoose.connect('mongodb://localhost:27017/barbershop')
-  .then(() => {
-    console.log('✅ Local MongoDB ga ulanish muvaffaqiyatli');
-    global.useMockData = false;
-  })
-  .catch(err => {
-    console.error('❌ Local MongoDB ulanish xatosi:', err.message);
-    console.log('🔄 Mock data bilan ishlaymiz...');
-    global.useMockData = true;
-  });
 }
 
 // Basic route
